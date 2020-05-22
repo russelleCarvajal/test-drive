@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+		integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous"> -->
+	<meta charset="utf-8">
+	<script src="https://apps.mypurecloud.com/widgets/9.0/cxbus.min.js"
+		onload="javascript:CXBus.configure({debug:false,pluginsPath:'https://apps.mypurecloud.com/widgets/9.0/plugins/'}); CXBus.loadPlugin('widgets-core');">
+	</script>
+	<script src='https://code.jquery.com/jquery-3.3.1.min.js'
+		integrity='sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=' crossorigin='anonymous'></script>
+	<script src="https://sdk-cdn.mypurecloud.com/javascript/62.0.0/purecloud-platform-client-v2.min.js"></script>
+	<script src="https://sdk-cdn.mypurecloud.com/client-apps/1.3.0/purecloud-client-app-sdk.js"></script>
+	<link rel="stylesheet" href="style.css">
+	
+	<title> Test Drive App </title>
+
+</head>
+<body>
+	
+	<div class="header">
+		<button type="button" onclick="startChat()" class="btn">Start Chat</button>                                    
+	</div>
+	<div class="test-drive-frame">
+		<iframe src=http://testdrive.genesys.com/></iframe>
+	</div>
+	
+</body> 
+</html> 
+	<!-- Import purecloud webchat api -->
+	<script id="purecloud-webchat-js" type="text/javascript"
+		src="https://apps.mypurecloud.com/webchat/jsapi-v1.js" region="us-east-1"
+		org-guid="03671e89-0883-48b0-8284-cd5260c38745" deployment-key="e020b006-2284-429e-901d-fdd836c258e1">
+	</script>
+
+
+
+	<script>
+		// Declare client Id to be used later depending on the purecloud region
+		let clientId = "";
+		const redirectUri = window.location.href;
+		const platformClient = require('platformClient');
+		const client = platformClient.ApiClient.instance;
+		let UsersApi = new platformClient.UsersApi();
+		// Declare userdata that will handle usersApi generated values. 
+		let userData = {};
+		// Declare variables that will be used by client app sdk
+		let ClientApp = window.purecloud.apps.ClientApp;
+		let myClientApp = new ClientApp({
+			pcEnvironmentQueryParam: 'pcEnvironment'
+		});
+
+		// Temporary client Ids per purecloud region
+		let clientIds = {
+
+			'mypurecloud.com': '',
+			'mypurecloud.ie': ''
+		}
+
+
+		$(document).ready(() => {
+			
+			if (myClientApp.pcEnvironment == 'mypurecloud.ie') {
+				clientId = clientIds["mypurecloud.ie"]
+			} else {
+				clientId = clientIds["mypurecloud.com"]
+			}
+
+			client.loginImplicitGrant(clientId, redirectUri)
+				.then(() => {
+					let token = client.authData.accessToken;
+					getUser();
+
+				})
+				.catch((err) => console.error(err));
+		})
+
+		// Get current user details using userApi
+		function getUser() {
+			let opts = {
+				'expand': ["organization"] // [String] | Which fields, if any, to expand.
+			};
+
+			UsersApi.getUsersMe(opts)
+				.then((data) => {
+					userData = data;
+					console.log(`getUsersMe success! data: ${JSON.stringify(userData, null, 2)}`);
+				})
+				.catch((err) => {
+					console.log('There was a failure calling getUsersMe');
+					console.error(err);
+				});
+
+		}
+
+		// Get user details for chat configuration and start chat pop up 
+		function startChat() {
+
+			let chatConfig = {
+				"webchatAppUrl": "https://apps.mypurecloud.com/webchat",
+				"webchatServiceUrl": "https://realtime.mypurecloud.com:443",
+				"orgId": userData.organization.thirdPartyOrgId,
+				"orgGuid": userData.organization.id,
+				"orgName": userData.organization.thirdPartyOrgName,
+				"queueName": "Russ TestQueue",
+				"logLevel": "DEBUG",
+				"locale": "en",
+				"data": {
+					"firstName": userData.name,
+					"email": userData.email
+				},
+				"companyLogo": {
+					"width": 600,
+					"height": 149,
+					"url": "https://user-images.githubusercontent.com/50225452/69786627-c18b1a00-11f5-11ea-88f0-c5a0e7085702.png"
+				},
+				"companyLogoSmall": {
+					"width": 25,
+					"height": 25,
+					"url": "https://d3a63qt71m2kua.cloudfront.net/developer-tools/1438/assets/images/companylogo.png"
+				},
+				"agentAvatar": {
+					"width": 462,
+					"height": 462,
+					"url": userData.images[0].imageUri // use user image on the chat
+				},
+				"welcomeMessage": "Thanks for reaching Test Drive support. Please wait for a while.",
+				"cssClass": "webchat-frame",
+				"css": {
+					"width": "100%",
+					"height": "100%"							
+					
+				}
+		
+			};
+
+
+			ININ.webchat.create(chatConfig, function (err, webchat) {
+				if (err) {
+					console.error(err);
+					throw err;
+				}
+
+				webchat.renderPopup({
+					width: 400,
+					height: 400,
+					title: 'Chat'
+				
+				});
+			});
+
+
+		}
+	</script>
